@@ -12,7 +12,7 @@ class UrlExpansionError(ValueError):
     """Raised when a Google Maps URL cannot be expanded or parsed."""
 
 
-def _extract_data_id_from_url(url: str) -> str | None:
+def _extract_data_id_from_url(url: str, response_text: str | None = None) -> str | None:
     """Extract a SerpApi-compatible `data_id` from known Google Maps URL shapes."""
     parsed = urlparse(url)
     query = parse_qs(parsed.query)
@@ -20,6 +20,10 @@ def _extract_data_id_from_url(url: str) -> str | None:
     data_value = query.get("data", [None])[0]
     if data_value:
         return unquote(data_value)
+
+    ftid_value = query.get("ftid", [None])[0]
+    if ftid_value:
+        return unquote(ftid_value)
 
     # Some share links encode the final target URL as `link=<...>`.
     nested_link = query.get("link", [None])[0]
@@ -30,9 +34,21 @@ def _extract_data_id_from_url(url: str) -> str | None:
 
     # Many standard maps URLs include a stable place identifier in the path.
     # Example segment: `!1s0x89c258f4f3f6f7f7:0xb2b....`
-    place_match = re.search(r"!1s(0x[0-9a-f]+:0x[0-9a-f]+)", url, flags=re.IGNORECASE)
+    decoded_url = unquote(url)
+
+    place_match = re.search(r"!1s(0x[0-9a-f]+:0x[0-9a-f]+)", decoded_url, flags=re.IGNORECASE)
     if place_match:
         return place_match.group(1)
+
+    ftid_match = re.search(r"[?&]ftid=(0x[0-9a-f]+:0x[0-9a-f]+)", decoded_url, flags=re.IGNORECASE)
+    if ftid_match:
+        return ftid_match.group(1)
+
+    # Some short links render a page where the place identifier appears only in HTML/JS.
+    if response_text:
+        html_match = re.search(r"(0x[0-9a-f]+:0x[0-9a-f]+)", response_text, flags=re.IGNORECASE)
+        if html_match:
+            return html_match.group(1)
 
     return None
 
@@ -60,7 +76,7 @@ def expand_google_maps_url(short_url: str, timeout: int = 15) -> dict[str, str]:
         raise UrlExpansionError(f"Unable to expand URL: {exc}") from exc
 
     final_url = response.url
-    data_id = _extract_data_id_from_url(final_url)
+    data_id = _extract_data_id_from_url(final_url, response_text=response.text)
 
     if not data_id:
         raise UrlExpansionError(
