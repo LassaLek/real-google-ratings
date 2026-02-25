@@ -26,13 +26,14 @@ except Exception:
 if not api_key:
     st.error("Server configuration error: SERPAPI_KEY is missing. Please set it in Streamlit secrets or environment variables.")
 
-review_limit = st.select_slider("Reviews to analyze", options=[50, 100, 150, 200], value=100)
+review_limit = st.select_slider("Reviews to analyze", options=[50, 100, 150, 200, "ALL"], value=100)
+review_limit_value = None if review_limit == "ALL" else int(review_limit)
 
 if url_input and api_key:
     try:
         with st.spinner("Analyzing reviews..."):
             expanded = expand_google_maps_url(url_input)
-            reviews = fetch_reviews(expanded["data_id"], api_key=api_key, limit=review_limit)
+            reviews = fetch_reviews(expanded["data_id"], api_key=api_key, limit=review_limit_value)
             result = analyze_reviews(reviews)
 
         st.success(f"Processed {result.total_reviews} reviews from resolved place URL.")
