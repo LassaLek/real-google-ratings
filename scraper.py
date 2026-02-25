@@ -30,11 +30,10 @@ def _normalize_review(review: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def fetch_reviews(data_id: str, api_key: str, limit: int | None = 200) -> list[dict[str, Any]]:
+def fetch_reviews(data_id: str, api_key: str, limit: int = 200) -> list[dict[str, Any]]:
     """Fetch reviews for a Google Maps place from SerpApi.
 
     Uses `google_maps_reviews` engine and paginates until `limit` is reached.
-    If `limit` is None, it fetches all available review pages.
     """
     if not data_id:
         raise ScraperError("Missing place `data_id`.")
@@ -44,7 +43,7 @@ def fetch_reviews(data_id: str, api_key: str, limit: int | None = 200) -> list[d
     reviews: list[dict[str, Any]] = []
     next_page_token: str | None = None
 
-    while limit is None or len(reviews) < limit:
+    while len(reviews) < limit:
         params: dict[str, Any] = {
             "engine": "google_maps_reviews",
             "data_id": data_id,
@@ -67,7 +66,7 @@ def fetch_reviews(data_id: str, api_key: str, limit: int | None = 200) -> list[d
 
         for item in page_reviews:
             reviews.append(_normalize_review(item))
-            if limit is not None and len(reviews) >= limit:
+            if len(reviews) >= limit:
                 break
 
         pagination = result.get("serpapi_pagination", {})

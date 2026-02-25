@@ -18,33 +18,21 @@ st.write(
 )
 
 url_input = st.text_input("Paste Google Maps Link", placeholder="https://maps.app.goo.gl/...")
-
-# IMPORTANT: API key is server-side only (Streamlit secrets / env), never shown in UI.
 try:
-    serpapi_key = st.secrets.get("SERPAPI_KEY", "")
+    default_key = st.secrets.get("SERPAPI_KEY", os.getenv("SERPAPI_KEY", ""))
 except Exception:
-    serpapi_key = ""
-if not serpapi_key:
-    serpapi_key = os.getenv("SERPAPI_KEY", "")
-
-no_limit = st.checkbox("Analyze all available reviews (no cap)", value=False)
-if no_limit:
-    review_limit: int | None = None
-    st.caption("No cap selected: app will paginate through all available SerpApi review pages.")
-else:
-    review_limit = st.select_slider("Reviews to analyze", options=[100, 200, 500, 1000, 2500, 5000], value=1000)
+    default_key = os.getenv("SERPAPI_KEY", "")
+api_key = st.text_input("SerpApi API Key", type="password", value=default_key)
+review_limit = st.select_slider("Reviews to analyze", options=[50, 100, 150, 200], value=100)
 
 if url_input:
-    if not serpapi_key:
-        st.error(
-            "Missing SerpApi key on server. Please set `SERPAPI_KEY` in Streamlit secrets "
-            "or as an environment variable before running the app."
-        )
+    if not api_key:
+        st.warning("Please provide your SerpApi API key.")
     else:
         try:
             with st.spinner("Analyzing reviews..."):
                 expanded = expand_google_maps_url(url_input)
-                reviews = fetch_reviews(expanded["data_id"], api_key=serpapi_key, limit=review_limit)
+                reviews = fetch_reviews(expanded["data_id"], api_key=api_key, limit=review_limit)
                 result = analyze_reviews(reviews)
 
             st.success(f"Processed {result.total_reviews} reviews from resolved place URL.")
